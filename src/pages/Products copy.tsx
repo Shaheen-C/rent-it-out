@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MessageCircle, Heart, ArrowLeft, X } from 'lucide-react';
-import { supabase } from '../libs/createClient';  // Import the supabase client
+import { supabase } from '../libs/createClient';
 
 interface ProductDetails {
   id: string;
@@ -11,9 +11,7 @@ interface ProductDetails {
   location: string;
   availability: boolean;
   images: string[];
-  category: string;
-  variation: string;
-  seller?: {
+  seller: {
     name: string;
     rating: number;
   };
@@ -67,32 +65,24 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            {product.images && product.images.length > 0 ? (
-              <>
-                <div className="aspect-square rounded-lg overflow-hidden mb-4">
+            <div className="aspect-square rounded-lg overflow-hidden mb-4">
+              <img 
+                src={product.images[0]}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {product.images.slice(1).map((img, idx) => (
+                <div key={idx} className="aspect-square rounded-lg overflow-hidden">
                   <img 
-                    src={product.images[0]}
-                    alt={product.name}
+                    src={img}
+                    alt={`${product.name} ${idx + 2}`}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {product.images.slice(1).map((img, idx) => (
-                    <div key={idx} className="aspect-square rounded-lg overflow-hidden">
-                      <img 
-                        src={img}
-                        alt={`${product.name} ${idx + 2}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="aspect-square rounded-lg overflow-hidden mb-4 bg-gray-200 flex items-center justify-center">
-                <p className="text-gray-500">No image available</p>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
           
           <div className="space-y-4">
@@ -106,11 +96,6 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
               </button>
             </div>
             <p className="text-xl font-semibold text-[#805532]">${product.price}/day</p>
-            
-            <div className="space-y-2">
-              <p className="font-semibold text-[#805532]">Category</p>
-              <p className="text-[#805532] capitalize">{product.category} - {product.variation}</p>
-            </div>
             
             <div className="space-y-2">
               <p className="font-semibold text-[#805532]">Location</p>
@@ -129,15 +114,13 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
               <p className="text-[#805532]">{product.description}</p>
             </div>
             
-            {product.seller && (
-              <div className="space-y-2">
-                <p className="font-semibold text-[#805532]">Seller</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[#805532]">{product.seller.name}</span>
-                  <span className="text-[#805532]">★ {product.seller.rating}</span>
-                </div>
+            <div className="space-y-2">
+              <p className="font-semibold text-[#805532]">Seller</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[#805532]">{product.seller.name}</span>
+                <span className="text-[#805532]">★ {product.seller.rating}</span>
               </div>
-            )}
+            </div>
 
             {showChat ? (
               <div className="space-y-4 border-t pt-4">
@@ -200,50 +183,51 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
 }
 
 function Products() {
-  const { category } = useParams();  // Capture the category from the URL
-  console.log(category)
-  const navigate = useNavigate();  // Hook to navigate to other pages
+  const { category } = useParams();
+  const navigate = useNavigate();
   const [selectedProduct, setSelectedProduct] = useState<ProductDetails | null>(null);
-  const [products, setProducts] = useState<ProductDetails[]>([]);  // State to hold products
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Fetch products from Supabase filtered by variation
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Query products by variation that matches the URL parameter
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('variation', category);  // Filter by variation matching the category parameter
-
-        if (error) {
-          throw error;
-        }
-
-        // Set the fetched data in state
-        setProducts(data || []);
-      } catch (err) {
-        console.error('Error fetching products:', err);
-        setError('Failed to load products. Please try again later.');
-      } finally {
-        setLoading(false);
+  const sampleProducts: ProductDetails[] = [
+    {
+      id: '1',
+      name: 'Elegant Wedding Dress',
+      description: 'Beautiful white wedding dress with intricate lace details and a long train. Perfect for a traditional wedding ceremony.',
+      price: 99,
+      location: 'New York, NY',
+      availability: true,
+      images: [
+        'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1596436889106-be35e843f974?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&q=80',
+      ],
+      seller: {
+        name: 'Jane Doe',
+        rating: 4.8
       }
-    };
-
-    if (category) {
-      fetchProducts();
+    },
+    {
+      id: '2',
+      name: 'Crystal Bridal Tiara',
+      description: 'Stunning crystal tiara with pearl accents. Perfect for adding a royal touch to your wedding day look.',
+      price: 45,
+      location: 'Los Angeles, CA',
+      availability: true,
+      images: [
+        'https://images.unsplash.com/photo-1596436889106-be35e843f974?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&q=80',
+      ],
+      seller: {
+        name: 'Emily Smith',
+        rating: 4.9
+      }
     }
-  }, [category]);  // Re-run when category changes
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <button 
-        onClick={() => navigate(-1)} 
+        onClick={() => navigate(-1)}
         className="text-[#805532] hover:text-[#805532]/80 mb-8"
       >
         <ArrowLeft className="w-6 h-6" />
@@ -253,55 +237,33 @@ function Products() {
         {category?.replace('-', ' ')}
       </h1>
       
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-[#805532]">Loading products...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-[#805532] text-xl">No products found in this category.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <div 
-              key={product.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform hover:scale-105 transition"
-              onClick={() => setSelectedProduct(product)}
-            >
-              <div className="h-48 bg-gray-200 relative">
-                {product.images && product.images.length > 0 ? (
-                  <img 
-                    src={product.images[0]} 
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <p className="text-gray-500">No image</p>
-                  </div>
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-[#805532]">{product.name}</h3>
-                <p className="text-[#805532] mt-2">${product.price}/day</p>
-                <button className="mt-4 bg-[#805532] text-white px-4 py-2 rounded-md hover:bg-[#805532]/80 transition w-full">
-                  View Details
-                </button>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {sampleProducts.map((product) => (
+          <div 
+            key={product.id}
+            className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform hover:scale-105 transition"
+            onClick={() => setSelectedProduct(product)}
+          >
+            <img 
+              src={product.images[0]}
+              alt={product.name}
+              className="w-full h-48 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="text-lg font-semibold text-[#805532]">{product.name}</h3>
+              <p className="text-[#805532] mt-2">${product.price}/day</p>
+              <button className="mt-4 bg-[#805532] text-white px-4 py-2 rounded-md hover:bg-[#805532]/80 transition w-full">
+                View Details
+              </button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {selectedProduct && (
         <ProductModal 
           product={selectedProduct} 
-          onClose={() => setSelectedProduct(null)}
+          onClose={() => setSelectedProduct(null)} 
         />
       )}
     </div>

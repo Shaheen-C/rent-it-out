@@ -1,12 +1,143 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Heart, Settings, MessageCircle, PlusCircle, User, X } from 'lucide-react';
+import { Heart, Settings, MessageCircle, PlusCircle, User, X, Upload, Loader } from 'lucide-react';
+import { supabase } from '../libs/createClient';
 
 function AddProductModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [userType, setUserType] = useState<'bride' | 'groom'>('bride');
+
+  const categoryOptions = {
+    bride: ['jewellery', 'shoes', 'dress'],
+    groom: ['accessories', 'shoes', 'dress']
+  };
+  
+  const [productName, setProductName] = useState('');
+  const [variation, setVariation] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [location, setLocation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [images, setImages] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Handle image selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
+
+    // Check if more than 2 files are selected
+    if (selectedFiles.length > 2) {
+      setError('You can only upload a maximum of 2 images');
+      return;
+    }
+
+    // Check if any file is over 2MB
+    const tooLargeFiles = Array.from(selectedFiles).filter(file => file.size > 2 * 1024 * 1024);
+    if (tooLargeFiles.length > 0) {
+      setError('Each image must be under 2MB');
+      return;
+    }
+
+    setImages(Array.from(selectedFiles));
+    setError('');
+  };
+
+  // Upload images to Supabase Storage
+// Upload images to Supabase Storage
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
+  
+  try {
+    // First, insert the product data to get the ID
+    const { data, error: insertError } = await supabase.from('products').insert([
+      {
+        name: productName,
+        description,
+        category: userType,
+        variation: variation,
+        price: parseFloat(price),
+        location,
+      },
+    ]).select();
+    
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+    
+    console.log(data);
+    // Use the correct ID field name from your database
+    // Based on the error, it seems your primary key is named 'products_id' not 'id'
+    const productId = data[0].products_id;
+    
+    // Then upload images if any
+    if (images.length > 0) {
+      const imageUrls = await uploadImagesToStorage(productId);
+      
+      // Update the product with image URLs - use the correct ID field name
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ images: imageUrls })
+        .eq('products_id', productId);  // Use 'products_id' instead of 'id'
+        
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+    
+    console.log('Product added successfully');
+    onClose(); // Close modal after success
+  } catch (err) {
+    console.error('Error adding product:', err);
+    setError(err instanceof Error ? err.message : 'Unknown error occurred');
+  } finally {
+    setLoading(false);
+    setUploadProgress(0);
+  }
+};
+
+// Upload images to Supabase Storage - fixed bucket name typo
+const uploadImagesToStorage = async (productId: string): Promise<string[]> => {
+  const imageUrls: string[] = [];
+
+  for (let i = 0; i < images.length; i++) {
+    const file = images[i];
+    const fileExt = file.name.split('.').pop();
+    // Add timestamp to ensure filename uniqueness
+    const timestamp = new Date().getTime();
+    const fileName = `${productId}_${timestamp}_${i}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // Upload file to Supabase Storage - fixed bucket name from 'prdocuts' to 'products'
+    const { data, error: uploadError } = await supabase.storage
+      .from('prdocuts')  // Corrected bucket name
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true // Set to true to replace existing files
+      });
+
+    if (uploadError) {
+      throw new Error(`Error uploading image: ${uploadError.message}`);
+    }
+
+    // Get the public URL - fixed bucket name
+    const { data: { publicUrl } } = supabase.storage
+      .from('prdocuts')  // Corrected bucket name
+      .getPublicUrl(filePath);
+
+    imageUrls.push(publicUrl);
+    setUploadProgress(Math.round(((i + 1) / images.length) * 100));
+  }
+
+  return imageUrls;
+};
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div className=" inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-auto">
       <div className="bg-white rounded-lg p-6 w-full max-w-lg relative">
         <button
           onClick={onClose}
@@ -15,19 +146,63 @@ function AddProductModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
           <X className="w-5 h-5" />
         </button>
         <h2 className="text-2xl font-bold text-[#805532] mb-4">Add New Product</h2>
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-[#805532] mb-1">Product Name</label>
             <input
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
               type="text"
-              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md"
+              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
               required
             />
+          </div>
+          <div className="space-y-2">
+            <p className="font-semibold text-[#805532] mb-2">Category</p>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="bride"
+                  checked={userType === 'bride'}
+                  onChange={(e) => setUserType(e.target.value as 'bride' | 'groom')}
+                  className="text-[#805532] focus:ring-[#805532]"
+                />
+                <span className="text-[#805532]">Bride</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="userType"
+                  value="groom"
+                  checked={userType === 'groom'}
+                  onChange={(e) => setUserType(e.target.value as 'bride' | 'groom')}
+                  className="text-[#805532] focus:ring-[#805532]"
+                />
+                <span className="text-[#805532]">Groom</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[#805532] mb-1">Variation</label>
+            <select className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black" 
+            value={variation} 
+            onChange={(e) => setVariation(e.target.value)}>
+              {categoryOptions[userType].map((category) => (
+                <option key={category} value={category} className="capitalize">
+                  {category}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-[#805532] mb-1">Description</label>
             <textarea
-              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
               rows={3}
               required
             />
@@ -35,49 +210,93 @@ function AddProductModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => 
           <div>
             <label className="block text-[#805532] mb-1">Price (per day)</label>
             <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
               type="number"
-              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md"
+              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
               required
             />
           </div>
           <div>
             <label className="block text-[#805532] mb-1">Location</label>
             <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
               type="text"
-              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md"
+              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
               required
             />
           </div>
           <div>
-            <label className="block text-[#805532] mb-1">Images (up to 4)</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md"
-              required
-            />
+            <label className="block text-[#805532] mb-1">Images (max 2, up to 2MB each)</label>
+            <div className="border border-dashed border-[#805532]/20 rounded-md p-4 text-center">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                id="imageInput"
+                onChange={handleImageChange}
+              />
+              <label 
+                htmlFor="imageInput" 
+                className="flex flex-col items-center justify-center cursor-pointer"
+              >
+                <Upload className="w-8 h-8 text-[#805532]" />
+                <span className="mt-2 text-sm text-gray-500">
+                  {images.length > 0 
+                    ? `${images.length} file${images.length > 1 ? 's' : ''} selected` 
+                    : 'Click to select images'}
+                </span>
+              </label>
+            </div>
+            {images.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">Selected files:</p>
+                <ul className="text-sm text-gray-700">
+                  {images.map((file, index) => (
+                    <li key={index} className="flex justify-between items-center">
+                      <span>{file.name}</span>
+                      <span className="text-xs text-gray-500">
+                        {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-[#805532] text-white py-2 rounded-md hover:bg-[#805532]/80 transition"
+              disabled={loading}
+              className="flex-1 bg-[#805532] text-white py-2 rounded-md hover:bg-[#805532]/80 transition flex items-center justify-center"
             >
-              Add Product
+              {loading ? (
+                <>
+                  <Loader className="w-4 h-4 mr-2 animate-spin" />
+                  {uploadProgress > 0 ? `Uploading... ${uploadProgress}%` : 'Adding...'}
+                </>
+              ) : (
+                'Add Product'
+              )}
             </button>
             <button
               type="button"
               onClick={onClose}
+              disabled={loading}
               className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-md hover:bg-gray-300 transition"
             >
               Cancel
             </button>
           </div>
         </form>
+        {error && <div className="text-red-500 mt-2">{error}</div>}
       </div>
     </div>
   );
 }
+
 
 function Navbar() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
