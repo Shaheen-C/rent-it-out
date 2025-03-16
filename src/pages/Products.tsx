@@ -216,11 +216,12 @@ function Products() {
       
       try {
         // Query products by variation that matches the URL parameter
+        console.log(category)
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('variation', category);  // Filter by variation matching the category parameter
-
+        console.log(data);
         if (error) {
           throw error;
         }

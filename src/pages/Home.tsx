@@ -7,19 +7,19 @@ const categories = {
     { 
       name: 'Jewelry', 
       icon: Ring, 
-      path: '/products/jewelry',
+      path: '/products/jewellery',
       image: 'https://images.unsplash.com/photo-1602752250015-52934bc45613?auto=format&fit=crop&w=800&q=80'
     },
     { 
       name: 'Dress', 
       icon: Crown, 
-      path: '/products/bride-dress',
+      path: '/products/dress',
       image: 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80'
     },
     { 
       name: 'Shoes', 
       icon: Shoe, 
-      path: '/products/bride-shoes',
+      path: '/products/shoes',
       image: 'https://images.unsplash.com/photo-1595341595379-cf1cd0ed7ad1?auto=format&fit=crop&w=800&q=80'
     }
   ],
@@ -44,6 +44,8 @@ const categories = {
     }
   ]
 };
+
+
 
 function Home() {
   const [selectedType, setSelectedType] = React.useState<'bride' | 'groom' | null>(null);
