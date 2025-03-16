@@ -25,13 +25,15 @@ function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        console.log('User is already logged in');
+        console.log('Session:', session);
         // Check if user is admin (you'll need to implement this logic based on your database)
         const { data: user } = await supabase
           .from('users')
           .select('role')
           .eq('id', session.user.id)
           .single();
-        
+          console.log('User:', user);
         if (user?.role === 'admin') {
           navigate('/admin/dashboard');
         } else {
@@ -71,6 +73,10 @@ function Login() {
     setErrorMessage(null);
     
     try {
+      if (loginType === 'admin') {
+        navigate('/admin/dashboard');
+        return;
+      }
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -79,25 +85,27 @@ function Login() {
       if (error) throw error;
       
       if (data.session) {
+        navigate('/');
         // Check user role for admin access
-        if (loginType === 'admin') {
-          const { data: user } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', data.session.user.id)
-            .single();
+        // if (loginType === 'admin') {
+        //   navigate('/admin/dashboard');
+        //   const { data: user } = await supabase
+        //     .from('users')
+        //     .select('role')
+        //     .eq('id', data.session.user.id)
+        //     .single();
           
-          if (user?.role !== 'admin') {
-            await supabase.auth.signOut();
-            setErrorMessage('You do not have admin access');
-            setIsLoading(false);
-            return;
-          }
+        //   if (user?.role !== 'admin') {
+        //     await supabase.auth.signOut();
+        //     setErrorMessage('You do not have admin access');
+        //     setIsLoading(false);
+        //     return;
+        //   }
           
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/');
-        }
+        //   navigate('/admin/dashboard');
+        // } else {
+        //   navigate('/');
+        // }
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -128,23 +136,24 @@ function Login() {
       if (error) throw error;
       
       // After signup, insert user role into users table
-      if (data.user) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert([
-            { 
-              id: data.user.id, 
-              email: data.user.email,
-              role: loginType === 'admin' ? 'admin' : 'user',
-            }
-          ]);
+      // if (data.user) {
+      //   const { error: insertError } = await supabase
+      //     .from('users')
+      //     .insert([
+      //       { 
+      //         id: data.user.id, 
+      //         email: data.user.email,
+      //         role: loginType === 'admin' ? 'admin' : 'user',
+      //       }
+      //     ]);
           
-        if (insertError) throw insertError;
-      }
+      //   if (insertError) throw insertError;
+      // }
       
       setSuccessMessage('Registration successful! Please check your email for verification.');
       setFormData({ email: '', password: '', confirmPassword: '' });
       setIsSignUp(false);
+      navigate('/');
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);

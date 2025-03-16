@@ -33,7 +33,7 @@ function MyAccount() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-28">
       <h1 className="text-3xl font-bold text-amber-900 mb-8">My Account</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

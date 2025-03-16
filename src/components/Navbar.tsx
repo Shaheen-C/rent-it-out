@@ -11,6 +11,7 @@ import {
   Loader,
 } from "lucide-react";
 import { supabase } from "../libs/createClient";
+import { useAuth } from "../contexts/AuthContext";
 
 function AddProductModal({
   isOpen,
@@ -23,7 +24,7 @@ function AddProductModal({
 
   const categoryOptions = {
     bride: ["jewellery", "shoes", "dress"],
-    groom: ["accessories", "shoes", "dress"],
+    groom: ["accessories", "groom-shoes", "groom-dress"],
   };
 
   const [productName, setProductName] = useState("");
@@ -66,20 +67,20 @@ function AddProductModal({
     e.preventDefault();
     setLoading(true);
     setError("");
-  
+
     try {
       if (variation === "") {
         throw new Error("Please select a variation");
       }
-  
-      let imageUrls  = [] as String[];
-  
+
+      let imageUrls = [] as String[];
+
       // Upload images first and get their URLs
       if (images.length > 0) {
-        imageUrls = await uploadImagesToStorage(variation); 
+        imageUrls = await uploadImagesToStorage(variation);
         console.log("Uploaded Image URLs:", imageUrls);
       }
-  
+
       // Insert product with images in one request
       const { data, error: insertError } = await supabase
         .from("products")
@@ -95,14 +96,13 @@ function AddProductModal({
           },
         ])
         .select();
-  
+
       if (insertError) {
         throw new Error(insertError.message);
       }
-  
+
       console.log("Product added successfully", data);
       onClose(); // Close modal after success
-  
     } catch (err) {
       console.error("Error adding product:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -111,7 +111,6 @@ function AddProductModal({
       setUploadProgress(0);
     }
   };
-  
 
   // Upload images to Supabase Storage - fixed bucket name typo
   const uploadImagesToStorage = async (
@@ -336,13 +335,13 @@ function AddProductModal({
 function Navbar() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const location = useLocation();
-
+  const { user, logout } = useAuth();
   // Make navbar transparent only on home page
   const isTransparent = location.pathname === "/";
-
+  console.log(user);
   return (
     <nav
-      className={`text-white sticky top-0 z-50 ${
+      className={`text-white fixed top-0 z-50 w-full  ${
         isTransparent ? "bg-transparent" : "bg-[#805532]"
       }`}
     >
@@ -353,8 +352,9 @@ function Navbar() {
               Rent It Out
             </Link>
           </div>
-
+          {user ? (
           <div className="flex items-center space-x-6">
+         
             <button
               onClick={() => setIsAddProductOpen(true)}
               className="hover:text-white/80 flex items-center gap-2"
@@ -362,9 +362,9 @@ function Navbar() {
               <PlusCircle className="w-6 h-6" />
               <span>Sell</span>
             </button>
-            <Link to="/favorites" className="hover:text-white/80">
+            {/* <Link to="/favorites" className="hover:text-white/80">
               <Heart className="w-6 h-6" />
-            </Link>
+            </Link> */}
             <Link to="/chat" className="hover:text-white/80">
               <MessageCircle className="w-6 h-6" />
             </Link>
@@ -374,13 +374,23 @@ function Navbar() {
             <Link to="/my-account" className="hover:text-white/80">
               <User className="w-6 h-6" />
             </Link>
-            <Link
-              to="/login"
-              className="bg-[#805532] px-4 py-2 rounded-md hover:bg-[#805532]/80 transition border border-white"
-            >
-              Login
-            </Link>
+           
+              <button
+                onClick={logout}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+              >
+                Logout
+              </button>
           </div>
+
+            ) : (
+              <Link
+                to="/login"
+                className="bg-[#805532] px-4 py-2 rounded-md hover:bg-[#805532]/80 transition border border-white"
+              >
+                Login
+              </Link>
+            )}
         </div>
       </div>
       <AddProductModal
