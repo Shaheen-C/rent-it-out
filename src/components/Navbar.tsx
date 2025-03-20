@@ -357,10 +357,15 @@ function AddProductModal({
 function Navbar() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user , logout } = useAuth();
   // Make navbar transparent only on home page
   const isTransparent = location.pathname === "/";
-  console.log(user);
+  // console.log(user);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    logout();
+  }
   return (
     <nav
       className={`text-white fixed top-0 z-50 w-full  ${
@@ -397,7 +402,7 @@ function Navbar() {
               </Link>
 
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
               >
                 Logout
