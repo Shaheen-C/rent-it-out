@@ -14,10 +14,7 @@ function AdminLayout() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
-    { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: Package, label: 'Products', path: '/admin/products' },
-    { icon: MessageSquare, label: 'Support', path: '/admin/support' },
-    { icon: Activity, label: 'Logs', path: '/admin/logs' },
   ];
 
   return (

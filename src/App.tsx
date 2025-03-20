@@ -8,6 +8,7 @@ import Chat from './pages/Chat';
 import About from './pages/About';
 import MyAccount from './pages/MyAccount';
 import Dashboard from './pages/admin/Dashboard';
+import ProductData from './pages/admin/ProductData'
 
 function App() {
   return (
@@ -16,10 +17,7 @@ function App() {
         {/* Admin routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users" element={<div>Users Management</div>} />
-          <Route path="products" element={<div>Products Management</div>} />
-          <Route path="support" element={<div>Support Management</div>} />
-          <Route path="logs" element={<div>System Logs</div>} />
+          <Route path="products" element={<ProductData />} />
         </Route>
 
         {/* User routes */}

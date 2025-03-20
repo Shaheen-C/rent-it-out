@@ -24,59 +24,30 @@ function About() {
           <div className="bg-white p-6 rounded-lg shadow-md relative">
             <div className="flex items-center gap-4 mb-4">
               <User className="w-6 h-6 text-amber-700" />
-              <h2 className="text-xl font-semibold text-amber-900">Account Settings</h2>
+              <h2 className="text-xl font-semibold text-amber-900">Account Details</h2>
             </div>
-            {showEmailChange ? (
-              <div className="space-y-4">
-                <button
-                  onClick={() => setShowEmailChange(false)}
-                  className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                <div>
-                  <label className="block text-amber-700 mb-2">Current Email</label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-amber-200 rounded-md"
-                    value="user@example.com"
-                    readOnly
-                  />
-                </div>
-                <div>
-                  <label className="block text-amber-700 mb-2">New Email</label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-amber-200 rounded-md"
-                    placeholder="Enter new email"
-                  />
-                </div>
-                <button className="bg-amber-700 text-white px-4 py-2 rounded-md hover:bg-amber-600">
-                  Update Email
-                </button>
-              </div>
-            ) : (
+            
               <div>
                 <div>
                   <label className="block text-amber-700 mb-2">Email</label>
                   <input
+                  disabled={true}
                     type="email"
                     className="w-full px-3 py-2 border border-amber-200 rounded-md"
                     value="user@example.com"
                     readOnly
                   />
                 </div>
-                <button 
+                {/* <button 
                   className="text-amber-700 hover:text-amber-600 mt-4"
                   onClick={() => setShowEmailChange(true)}
                 >
                   Change Email
-                </button>
+                </button> */}
               </div>
-            )}
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md relative">
+          {/* <div className="bg-white p-6 rounded-lg shadow-md relative">
             <div className="flex items-center gap-4 mb-4">
               <Lock className="w-6 h-6 text-amber-700" />
               <h2 className="text-xl font-semibold text-amber-900">Password</h2>
@@ -125,9 +96,9 @@ function About() {
                 Change Password
               </button>
             )}
-          </div>
+          </div> */}
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          {/* <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="flex items-center gap-4 mb-4">
               <Bell className="w-6 h-6 text-amber-700" />
               <h2 className="text-xl font-semibold text-amber-900">Notifications</h2>
@@ -143,7 +114,7 @@ function About() {
                 <span className="text-amber-900">Email notifications</span>
               </label>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

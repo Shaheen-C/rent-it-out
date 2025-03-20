@@ -402,7 +402,7 @@ function Login() {
                 </div>
               )}
 
-              {!isSignUp && (
+              {/* {!isSignUp && (
                 <button
                   type="button"
                   onClick={() => {
@@ -413,7 +413,7 @@ function Login() {
                 >
                   Forgot Password?
                 </button>
-              )}
+              )} */}
 
               <button
                 type="submit"
