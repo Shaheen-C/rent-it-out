@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .select("role")
           .eq("id", session.user.id)
           .single();
-        console.log(userData);
         if (error) {
           console.error("Error fetching user role:", error);
         } else {
@@ -45,7 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log("Auth state changed:", event, session);
         if (session?.user) {
           setUser(session.user);
           // Fetch additional user data (e.g., role) from the `user` table
@@ -75,7 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout function
   const logout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Error during logout:", error);
+    } else {
+      console.log("User logged out successfully");
+    }
+    // Clear local storage or cookies if necessary
+    localStorage.removeItem("sb-auth-token");
     setUser(null);
     setRole(null);
   };

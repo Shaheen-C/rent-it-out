@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "../libs/createClient";
 import { AuthError, Session } from "@supabase/supabase-js";
@@ -21,16 +21,12 @@ function Login() {
     confirmPassword: "",
   });
 
-  // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         console.log("User is already logged in");
         console.log("Session:", session);
-        // Check if user is admin (you'll need to implement this logic based on your database)
         const { data: user } = await supabase
           .from("users")
           .select("role")
@@ -89,26 +85,6 @@ function Login() {
 
       if (data.session) {
         navigate("/");
-        // Check user role for admin access
-        // if (loginType === 'admin') {
-        //   navigate('/admin/dashboard');
-        //   const { data: user } = await supabase
-        //     .from('users')
-        //     .select('role')
-        //     .eq('id', data.session.user.id)
-        //     .single();
-
-        //   if (user?.role !== 'admin') {
-        //     await supabase.auth.signOut();
-        //     setErrorMessage('You do not have admin access');
-        //     setIsLoading(false);
-        //     return;
-        //   }
-
-        //   navigate('/admin/dashboard');
-        // } else {
-        //   navigate('/');
-        // }
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -128,7 +104,6 @@ function Login() {
     setErrorMessage(null);
 
     try {
-      // Step 1: Sign up the user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -139,21 +114,19 @@ function Login() {
 
       if (error) throw error;
 
-      // Step 2: Insert user data into the `user` table
       if (data.user) {
         const { error: insertError } = await supabase.from("users").insert([
           {
-            full_name: formData.full_name, // Use the email as the default full name
-            id: data.user.id, // Use the user ID from Supabase Auth
-            email: data.user.email, // Use the email from Supabase Auth
-            role: "user", // Default role for new users
+            full_name: formData.full_name,
+            id: data.user.id,
+            email: data.user.email,
+            role: "user",
           },
         ]);
 
         if (insertError) throw insertError;
       }
 
-      // Step 3: Show success message and reset form
       setSuccessMessage(
         "Registration successful! Please check your email for verification."
       );
@@ -401,19 +374,6 @@ function Login() {
                   />
                 </div>
               )}
-
-              {/* {!isSignUp && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotPassword(true);
-                    setErrorMessage(null);
-                  }}
-                  className="text-[#805532] hover:text-[#805532]/80 text-sm"
-                >
-                  Forgot Password?
-                </button>
-              )} */}
 
               <button
                 type="submit"

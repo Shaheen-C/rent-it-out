@@ -34,14 +34,17 @@ function Dashboard() {
   const navigate = useNavigate();
   // Fetch total users and products from Supabase
   useEffect(() => {
-    if (!user) {
-      // logout();
+    if (user) {
+      if (role !== "admin") {
+        navigate("/");
+        return;
+      }
+    } else {
       navigate("/");
-      return;
-    } else if (role !== "admin") {
-      navigate("/");
-      return;
     }
+  }, [user, role]);
+  
+  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
