@@ -1,149 +1,239 @@
 import React, { useState, useEffect } from "react";
 import { MessageCircle, Send } from "lucide-react";
+import { supabase } from "../libs/createClient";
+import { useAuth } from "../contexts/AuthContext";
+import { useParams, useNavigate } from "react-router-dom";
 
 // TypeScript Interfaces
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  receiver_id: string;
-  created_at: string;
-}
-
-interface Conversation {
-  id: string;
+interface Product {
+  products_id: number;
   name: string;
-  lastMessage: string;
-  lastUpdated: string;
+  description: string;
+  owner_id: string;
 }
 
-const dummyConversations: Conversation[] = [
-  {
-    id: "user-001",
-    name: "John Doe",
-    lastMessage: "Hey, how's it going?",
-    lastUpdated: "2024-03-15T10:00:00Z",
-  },
-  {
-    id: "user-002",
-    name: "Alice Smith",
-    lastMessage: "Let's meet tomorrow!",
-    lastUpdated: "2024-03-14T14:30:00Z",
-  },
-  {
-    id: "user-003",
-    name: "Bob Johnson",
-    lastMessage: "I'll check on that and update you.",
-    lastUpdated: "2024-03-13T18:15:00Z",
-  },
-];
+interface ChatMessage {
+  id: number;
+  product_id: number;
+  sender_id: string;
+  message: string;
+  timestamp: string;
+}
 
 const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState<string>("");
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  
-  const userId = "current-user"; // Simulated logged-in user
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productsWithMessages, setProductsWithMessages] = useState<Product[]>([]);
+  const { user } = useAuth();
+  const { productId } = useParams<{ productId: string }>();
+  const navigate = useNavigate();
 
-  // Load messages from localStorage
+  // Fetch products with messages from Supabase
   useEffect(() => {
-    const storedMessages = JSON.parse(localStorage.getItem("messages") || "[]");
-    setMessages(storedMessages);
-  }, []);
+    if (!user) return; // Ensure user is defined
 
-  // Save messages to localStorage whenever messages update
-  useEffect(() => {
-    localStorage.setItem("messages", JSON.stringify(messages));
-  }, [messages]);
+    const fetchProductsWithMessages = async () => {
+      try {
+        // Fetch distinct product_ids from chat_messages where the user is involved
+        const { data: messagesData, error: messagesError } = await supabase
+          .from("chat_messages")
+          .select("product_id")
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`); // Use user.id as a value
 
-  // Send Message
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+        if (messagesError) throw messagesError;
 
-    const newMsg: Message = {
-      id: Math.random().toString(36).substring(2, 15),
-      content: newMessage,
-      sender_id: userId,
-      receiver_id: selectedConversation.id,
-      created_at: new Date().toISOString(),
+        // Extract unique product_ids
+        const productIds = Array.from(
+          new Set(messagesData.map((msg) => msg.product_id))
+        );
+
+        // Fetch products corresponding to these product_ids
+        const { data: productsData, error: productsError } = await supabase
+          .from("products")
+          .select("*")
+          .in("products_id", productIds);
+
+        if (productsError) throw productsError;
+
+        setProductsWithMessages(productsData || []);
+
+        // If productId is in the URL, select the corresponding product
+        if (productId) {
+          const product = productsData.find(
+            (p) => p.products_id === parseInt(productId)
+          );
+          if (product) {
+            setSelectedProduct(product);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching products with messages:", err);
+      }
     };
 
-    setMessages((prev) => [...prev, newMsg]);
-    setNewMessage("");
+    fetchProductsWithMessages();
+  }, [productId, user]);
+
+  // Fetch messages for the selected product
+  useEffect(() => {
+    if (!selectedProduct || !user) return;
+
+    const fetchMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("chat_messages")
+          .select("*")
+          .eq("product_id", selectedProduct.products_id)
+          .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`) // Use user.id as a value
+          .order("timestamp", { ascending: true });
+
+        if (error) throw error;
+
+        setMessages(data || []);
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+      }
+    };
+
+    fetchMessages();
+
+    // Set up real-time subscription for messages
+    const subscription = supabase
+      .channel(`chat_messages:product_id=eq.${selectedProduct.products_id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new as ChatMessage]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [selectedProduct, user]);
+
+  // Send Message
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedProduct || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from("chat_messages")
+        .insert([
+          {
+            product_id: selectedProduct.products_id,
+            sender_id: user.id,
+            message: newMessage.trim(),
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+
+      if (error) throw error;
+
+      setNewMessage("");
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
+  };
+
+  // Handle product selection
+  const handleProductSelect = (product: Product) => {
+    setSelectedProduct(product);
+    navigate(`/chat/${product.products_id}`);
   };
 
   return (
     <div className="container mx-auto px-4 py-8 pt-28">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
         <div className="flex h-[calc(100vh-12rem)]">
-          {/* Sidebar - Conversations List */}
+          {/* Sidebar - Products with Messages */}
           <div className="w-1/3 border-r border-amber-100">
             <div className="p-4 border-b border-amber-100">
-              <h2 className="text-xl font-semibold text-amber-900">Chats</h2>
+              <h2 className="text-xl font-semibold text-amber-900">Products</h2>
             </div>
             <div className="overflow-y-auto h-full">
-              {dummyConversations.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`p-4 cursor-pointer border-b border-amber-100 ${
-                    selectedConversation?.id === chat.id ? "bg-amber-200" : "hover:bg-amber-50"
-                  }`}
-                  onClick={() => setSelectedConversation(chat)}
-                >
-                  <h3 className="font-medium text-amber-900">{chat.name}</h3>
-                  <p className="text-sm text-amber-700 truncate">{chat.lastMessage}</p>
+              {productsWithMessages.length > 0 ? (
+                productsWithMessages.map((product) => (
+                  <div
+                    key={product.products_id}
+                    className={`p-4 cursor-pointer border-b border-amber-100 ${
+                      selectedProduct?.products_id === product.products_id
+                        ? "bg-amber-200"
+                        : "hover:bg-amber-50"
+                    }`}
+                    onClick={() => handleProductSelect(product)}
+                  >
+                    <h3 className="font-medium text-amber-900">{product.name}</h3>
+                    <p className="text-sm text-amber-700 truncate">
+                      {product.description}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-amber-700">No chat history found.</p>
+                  <p className="text-amber-700 mt-2">
+                    Start a new chat by selecting a product.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
           {/* Chat Window */}
           <div className="flex-1 flex flex-col">
-            {selectedConversation ? (
+            {selectedProduct ? (
               <>
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4">
-  {messages.length === 0 ||
-  messages.filter(
-    (msg) =>
-      (msg.sender_id === userId && msg.receiver_id === selectedConversation?.id) ||
-      (msg.sender_id === selectedConversation?.id && msg.receiver_id === userId)
-  ).length === 0 ? (
-    // No Messages UI
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <MessageCircle className="w-16 h-16 text-amber-300 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-amber-900">
-          No messages yet
-        </h3>
-        <p className="text-amber-700 mt-2">
-          Start the conversation now!
-        </p>
-      </div>
-    </div>
-  ) : (
-    // Display messages
-    messages
-      .filter(
-        (msg) =>
-          (msg.sender_id === userId && msg.receiver_id === selectedConversation?.id) ||
-          (msg.sender_id === selectedConversation?.id && msg.receiver_id === userId)
-      )
-      .map((msg) => (
-        <div key={msg.id} className="mb-3">
-          <p
-            className={`font-semibold ${
-              msg.sender_id === userId ? "text-blue-500" : "text-amber-900"
-            }`}
-          >
-            {msg.sender_id === userId ? "You" : selectedConversation?.name}
-          </p>
-          <p className="text-amber-700">{msg.content}</p>
-        </div>
-      ))
-  )}
-</div>
-
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <MessageCircle className="w-16 h-16 text-amber-300 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-amber-900">
+                          No messages yet
+                        </h3>
+                        <p className="text-amber-700 mt-2">
+                          Start the conversation now!
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`mb-3 ${
+                          msg.sender_id === user?.id ? "text-right" : "text-left"
+                        }`}
+                      >
+                        <p
+                          className={`font-semibold ${
+                            msg.sender_id === user?.id
+                              ? "text-blue-500"
+                              : "text-amber-900"
+                          }`}
+                        >
+                          {msg.sender_id === user?.id ? "You" : "Seller"}
+                        </p>
+                        <p
+                          className={`inline-block p-2 rounded-lg ${
+                            msg.sender_id === user?.id
+                              ? "bg-blue-100 text-blue-900"
+                              : "bg-amber-100 text-amber-900"
+                          }`}
+                        >
+                          {msg.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(msg.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
 
                 {/* Message Input */}
                 <div className="p-4 border-t border-amber-100 flex items-center">
@@ -168,10 +258,10 @@ const Chat: React.FC = () => {
                 <div className="text-center">
                   <MessageCircle className="w-16 h-16 text-amber-300 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-amber-900">
-                    Select a conversation
+                    Select a product
                   </h3>
                   <p className="text-amber-700 mt-2">
-                    Choose a chat from the list to view messages.
+                    Choose a product to start chatting with the owner.
                   </p>
                 </div>
               </div>

@@ -33,6 +33,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/products/:category" element={<Products />} />
                 <Route path="/chat" element={<Chat />} />
+                <Route path="/chat/:id" element={<Chat />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/my-account" element={<MyAccount />} />
               </Routes>

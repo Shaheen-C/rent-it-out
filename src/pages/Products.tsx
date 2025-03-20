@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { MessageCircle, Heart, ArrowLeft, X } from 'lucide-react';
-import { supabase } from '../libs/createClient';  // Import the supabase client
+import { useNavigate,useParams } from 'react-router-dom';
+import { MessageCircle, Heart, X , ArrowLeft} from 'lucide-react';
+import { supabase } from '../libs/createClient';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProductDetails {
-  id: string;
+  products_id: number;
   name: string;
   description: string;
   price: number;
@@ -13,6 +14,7 @@ interface ProductDetails {
   images: string[];
   category: string;
   variation: string;
+  seller_id: string; // Add seller_id to identify the product owner
   seller?: {
     name: string;
     rating: number;
@@ -20,10 +22,12 @@ interface ProductDetails {
 }
 
 interface ChatMessage {
-  id: string;
-  sender: 'user' | 'seller';
+  id: number;
+  product_id: number;
+  sender_id: string;
+  receiver_id: string;
   message: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
 function ProductModal({ product, onClose }: { product: ProductDetails; onClose: () => void }) {
@@ -31,28 +35,79 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
   const [message, setMessage] = useState('');
   const [isLiked, setIsLiked] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      // Add user message
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'user',
-        message: message.trim(),
-        timestamp: new Date(),
-      };
-      
-      // Simulate seller response
-      const sellerResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'seller',
-        message: `Thank you for your interest! I'll get back to you shortly regarding "${message.trim()}"`,
-        timestamp: new Date(),
-      };
-
-      setChatMessages([...chatMessages, userMessage, sellerResponse]);
-      setMessage('');
+  // Fetch chat messages from Supabase
+  useEffect(() => {
+    if (showChat && user) {
+      fetchChatMessages();
     }
+  }, [showChat, user]);
+
+  const fetchChatMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('product_id', product.products_id)
+        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`) // Fetch messages where user is sender or receiver
+        .order('timestamp', { ascending: true });
+
+      if (error) throw error;
+
+      // Cast data to ChatMessage[]
+      setChatMessages((data as ChatMessage[]) || []);
+    } catch (err) {
+      console.error('Error fetching chat messages:', err);
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!message.trim() || !user || !product) return;
+
+    try {
+      // Add user message to Supabase
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert([
+          {
+            product_id: product.products_id,
+            sender_id: user?.id, // Authenticated user is the sender
+            receiver_id: product.seller_id, // Product owner is the receiver
+            message: message.trim(),
+            timestamp: new Date().toISOString(),
+          },
+        ])
+        .select(); // Ensure data is returned
+
+      if (error) throw error;
+
+      // Update local state with new messages
+      setChatMessages((prev) => [
+        ...prev,
+        ...(data as ChatMessage[]), // Cast data to ChatMessage[]
+      ]);
+      setMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
+  };
+
+  const handleChat = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setShowChat(true);
+  };
+
+  const handleFavorite = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsLiked((prev) => !prev);
   };
 
   return (
@@ -66,6 +121,7 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Product Images */}
           <div>
             {product.images && product.images.length > 0 ? (
               <>
@@ -95,11 +151,12 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
             )}
           </div>
           
+          {/* Product Details */}
           <div className="space-y-4">
             <div className="flex justify-between items-start">
               <h2 className="text-2xl font-bold text-[#805532]">{product.name}</h2>
               <button 
-                onClick={() => setIsLiked(!isLiked)}
+                onClick={handleFavorite}
                 className={`p-2 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:bg-gray-100`}
               >
                 <Heart className="w-6 h-6" fill={isLiked ? "currentColor" : "none"} />
@@ -145,18 +202,19 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
                   {chatMessages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`mb-2 ${
-                        msg.sender === 'user' ? 'text-right' : 'text-left'
-                      }`}
+                      className={`mb-2 ${msg.sender_id === user?.id ? 'text-right' : 'text-left'}`}
                     >
                       <div
                         className={`inline-block p-2 rounded-lg ${
-                          msg.sender === 'user'
+                          msg.sender_id === user?.id
                             ? 'bg-[#805532] text-white'
                             : 'bg-gray-200 text-[#805532]'
                         }`}
                       >
                         {msg.message}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {new Date(msg.timestamp).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -185,7 +243,7 @@ function ProductModal({ product, onClose }: { product: ProductDetails; onClose: 
               </div>
             ) : (
               <button
-                onClick={() => setShowChat(true)}
+                onClick={handleChat}
                 className="w-full bg-[#805532] text-white py-2 rounded-md hover:bg-[#805532]/80 transition flex items-center justify-center gap-2"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -216,12 +274,11 @@ function Products() {
       
       try {
         // Query products by variation that matches the URL parameter
-        console.log(category)
         const { data, error } = await supabase
           .from('products')
           .select('*')
           .eq('variation', category);  // Filter by variation matching the category parameter
-        console.log(data);
+
         if (error) {
           throw error;
         }
@@ -270,7 +327,7 @@ function Products() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {products.map((product) => (
             <div 
-              key={product.id}
+              key={product.products_id}
               className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform hover:scale-105 transition"
               onClick={() => setSelectedProduct(product)}
             >
@@ -310,3 +367,4 @@ function Products() {
 }
 
 export default Products;
+

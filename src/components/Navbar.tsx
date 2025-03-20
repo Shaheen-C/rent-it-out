@@ -32,10 +32,12 @@ function AddProductModal({
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [location, setLocation] = useState("");
+  const [availability, setAvailability] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const { user } = useAuth();
 
   // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,7 +93,9 @@ function AddProductModal({
             category: userType,
             variation: variation,
             price: parseFloat(price),
+            seller_id: user?.id,
             location,
+            availability: availability,
             images: imageUrls.length > 0 ? imageUrls : null, // Store images if available
           },
         ])
@@ -103,6 +107,12 @@ function AddProductModal({
 
       console.log("Product added successfully", data);
       onClose(); // Close modal after success
+      setProductName("");
+      setVariation("");
+      setDescription("");
+      setPrice("");
+      setLocation("");
+      setImages([]);
     } catch (err) {
       console.error("Error adding product:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -155,8 +165,8 @@ function AddProductModal({
   if (!isOpen) return null;
 
   return (
-    <div className=" inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-auto">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg relative">
+    <div className="fixed inset-0 bg-black bg-opacity-20 p-4 overflow-auto min-h-screen w-full h-full">
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg relative max-h-[90vh] overflow-y-auto mx-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
@@ -242,6 +252,18 @@ function AddProductModal({
               className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
               required
             />
+          </div>
+          <div>
+            <label className="block text-[#805532] mb-1">Availability</label>
+            <select
+              value={availability.toString()} 
+              onChange={(e) => setAvailability(e.target.value === "true")}
+              className="w-full px-3 py-2 border border-[#805532]/20 rounded-md text-black"
+              required
+            >
+              <option value="true">Available</option>
+              <option value="false">Not Available</option>
+            </select>
           </div>
           <div>
             <label className="block text-[#805532] mb-1">Location</label>
@@ -353,44 +375,42 @@ function Navbar() {
             </Link>
           </div>
           {user ? (
-          <div className="flex items-center space-x-6">
-         
-            <button
-              onClick={() => setIsAddProductOpen(true)}
-              className="hover:text-white/80 flex items-center gap-2"
-            >
-              <PlusCircle className="w-6 h-6" />
-              <span>Sell</span>
-            </button>
-            {/* <Link to="/favorites" className="hover:text-white/80">
+            <div className="flex items-center space-x-6">
+              <button
+                onClick={() => setIsAddProductOpen(true)}
+                className="hover:text-white/80 flex items-center gap-2"
+              >
+                <PlusCircle className="w-6 h-6" />
+                <span>Sell</span>
+              </button>
+              {/* <Link to="/favorites" className="hover:text-white/80">
               <Heart className="w-6 h-6" />
             </Link> */}
-            <Link to="/chat" className="hover:text-white/80">
-              <MessageCircle className="w-6 h-6" />
-            </Link>
-            <Link to="/about" className="hover:text-white/80">
-              <Settings className="w-6 h-6" />
-            </Link>
-            <Link to="/my-account" className="hover:text-white/80">
-              <User className="w-6 h-6" />
-            </Link>
-           
+              <Link to="/chat" className="hover:text-white/80">
+                <MessageCircle className="w-6 h-6" />
+              </Link>
+              <Link to="/about" className="hover:text-white/80">
+                <Settings className="w-6 h-6" />
+              </Link>
+              <Link to="/my-account" className="hover:text-white/80">
+                <User className="w-6 h-6" />
+              </Link>
+
               <button
                 onClick={logout}
                 className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
               >
                 Logout
               </button>
-          </div>
-
-            ) : (
-              <Link
-                to="/login"
-                className="bg-[#805532] px-4 py-2 rounded-md hover:bg-[#805532]/80 transition border border-white"
-              >
-                Login
-              </Link>
-            )}
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="bg-[#805532] px-4 py-2 rounded-md hover:bg-[#805532]/80 transition border border-white"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </div>
       <AddProductModal
