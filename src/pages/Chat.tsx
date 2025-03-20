@@ -9,12 +9,13 @@ interface Product {
   products_id: number;
   name: string;
   description: string;
-  owner_id: string;
+  seller_id: string;
 }
 
 interface ChatMessage {
   id: number;
   product_id: number;
+  receiver_id: string;
   sender_id: string;
   message: string;
   timestamp: string;
@@ -125,6 +126,7 @@ const Chat: React.FC = () => {
         .insert([
           {
             product_id: selectedProduct.products_id,
+            receiver_id: selectedProduct.seller_id,
             sender_id: user.id,
             message: newMessage.trim(),
             timestamp: new Date().toISOString(),
